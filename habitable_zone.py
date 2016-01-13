@@ -6,7 +6,7 @@ import math
 import random
 import world_gen
 
-view_theta, view_phi, view_radius = 0.0, math.pi/2.0, 6.0
+view_theta, view_phi, view_radius = 0.0, math.pi/2.0, 12.0
 vtd, vpd, vrd = 0.0, 0.0, 0.0
 
 
@@ -68,10 +68,17 @@ def init():
 
 
 def keyboard(key, x, y):
-    global vtd, vpd, vrd, world1, fov
+    global vtd, vpd, vrd, world1
 
     if key == 'r':
-        world1 = world_gen.create_world(1, random.random(), 0.35, 5, world_gen.WorldType.Normal)
+        wt = world_gen.WorldType()
+        wt.terrain_type.values[7] = 0.5
+        wt.terrain_type.values[0] = 0.42
+        world1 = world_gen.create_world(1, random.random(), 0.35, 10, wt)
+
+    if key == 's':
+        world1.world_smooth += 1
+        world_gen.create_terrain(world1)
 
     if key == 100:
         vtd -= 0.01
@@ -100,6 +107,9 @@ def main():
     init()
     glutMainLoop()
 
+wt = world_gen.WorldType()
+wt.terrain_type.values[7] = 0.5
+wt.terrain_type.values[0] = 0.42
+world1 = world_gen.create_world(1, 33, 0.35, 10, wt)
 
-world1 = world_gen.create_world(1, 33, 0.35, 5, world_gen.WorldType.Normal)
 main()
