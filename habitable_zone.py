@@ -3,9 +3,10 @@ from OpenGL.GLUT import *
 from OpenGL.GLU import *
 import numpy
 import math
+import random
 import world_gen
 
-view_theta, view_phi, view_radius = 0.0, 0.0, 6.0
+view_theta, view_phi, view_radius = 0.0, math.pi/2.0, 6.0
 vtd, vpd, vrd = 0.0, 0.0, 0.0
 
 
@@ -56,6 +57,9 @@ def init():
     glShadeModel(GL_SMOOTH)
     glMatrixMode(GL_PROJECTION)
 
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
     gluPerspective(45.0, float(640)/float(480), 0.1, 100.0)
     glMatrixMode(GL_MODELVIEW)
     gluLookAt(6.0, 0.0, 0.0,
@@ -64,7 +68,10 @@ def init():
 
 
 def keyboard(key, x, y):
-    global vtd, vpd, vrd
+    global vtd, vpd, vrd, world1, fov
+
+    if key == 'r':
+        world1 = world_gen.create_world(1, random.random(), 0.35, 5, world_gen.WorldType.Normal)
 
     if key == 100:
         vtd -= 0.01
@@ -94,5 +101,5 @@ def main():
     glutMainLoop()
 
 
-world1 = world_gen.create_world(1, 33, 0.40, 5, world_gen.WorldType.Normal)
+world1 = world_gen.create_world(1, 33, 0.35, 5, world_gen.WorldType.Normal)
 main()
