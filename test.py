@@ -201,6 +201,7 @@ def display():
 def keyboard(key, x, y):
     if key == 'r':
         sphere_points()
+        calc_stars()
 
 
 def special_keyboard(key, x, y):
