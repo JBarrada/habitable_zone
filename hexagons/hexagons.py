@@ -3,11 +3,27 @@ from OpenGL.GLUT import *
 from OpenGL.GLU import *
 import numpy
 import math
-import random
-import world_gen
 
 view_theta, view_phi, view_radius = 0.0, math.pi/2.0, 12.0
 vtd, vpd, vrd = 0.0, 0.0, 0.0
+
+hexagon_points = []
+hexagon_simplices = []
+
+
+def gen_prism():
+    global hexagon_points, hexagon_simplices
+    for i in range(6):
+        x, y = math.cos(i/6.0*2*math.pi), math.sin(i/6.0*2*math.pi)
+        hexagon_points += [(x, y, 0), (x, y, -20)]
+
+    hexagon_simplices = [(0, 2, 4),
+                         (0, 4, 6),
+                         (0, 6, 10),
+                         (6, 8, 10)]
+
+    for i in range(6):
+        hexagon_simplices += [(0+(i*2), 1+(i*2), (2+(i*2)) % 12), ((2+(i*2)) % 12, 1+(i*2), (3+(i*2)) % 12)]
 
 
 def view_handler():
@@ -16,9 +32,9 @@ def view_handler():
     vpd = numpy.clip(vpd, -0.06, 0.06)
     vrd = numpy.clip(vrd, -0.06, 0.06)
 
-    view_theta += vtd
-    view_phi += vpd
-    view_radius += vrd
+    view_theta += numpy.clip((view_radius-1.1)*vtd, -0.01, 0.01)
+    view_phi += numpy.clip((view_radius-1.1)*vpd, -0.01, 0.01)
+    view_radius += numpy.clip((view_radius-1.1)*vrd, -0.01, 0.01)
 
     vtd = 0.0 if abs(vtd) < 0.002 else vtd
     vpd = 0.0 if abs(vpd) < 0.002 else vpd
@@ -41,13 +57,25 @@ def display():
 
     view_handler()
 
-    world_gen.draw_world(world1)
+    va = numpy.array(hexagon_points).ravel()
+    glVertexPointer(3, GL_FLOAT, 0, va)
+    glEnableClientState(GL_VERTEX_ARRAY)
+
+    ia = numpy.array(hexagon_simplices).ravel()
+
+    glColor3f(0, 1, 1)
+    glDrawElements(GL_TRIANGLES, len(ia), GL_UNSIGNED_INT, ia)
+
+    glColor3f(1, 0, 0)
+    glDrawElements(GL_LINES, len(ia), GL_UNSIGNED_INT, ia)
+
+    glDisableClientState(GL_VERTEX_ARRAY)
 
     glutSwapBuffers()
 
 
 def init():
-    glClearColor(0.1, 0.1, 0.1, 0.0)
+    glClearColor(0, 0, 0, 0)
     glPointSize(4.0)
     glLineWidth(2.0)
 
@@ -60,6 +88,15 @@ def init():
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
+    fog_color = [1, 1, 1, 1]
+
+    glFogi(GL_FOG_MODE, GL_LINEAR)
+    glFogfv(GL_FOG_COLOR, fog_color)
+    glHint(GL_FOG_HINT, GL_DONT_CARE)
+    glFogf(GL_FOG_START, 0.0)
+    glFogf(GL_FOG_END, 40.0)
+    glEnable(GL_FOG)
+
     gluPerspective(45.0, float(640)/float(480), 0.1, 100.0)
     glMatrixMode(GL_MODELVIEW)
     gluLookAt(6.0, 0.0, 0.0,
@@ -68,19 +105,7 @@ def init():
 
 
 def keyboard(key, x, y):
-    global vtd, vpd, vrd, world1
-
-    if key == 'r':
-        wt = world_gen.WorldType()
-        wt.terrain_type.values[0] = 0.42
-        wt.terrain_type.values[2] = 0.3
-        wt.terrain_type.values[3] = 0.4
-        wt.terrain_type.values[7] = 0.5
-        world1 = world_gen.create_world(1, random.random(), 0.35, 10, wt)
-
-    if key == 's':
-        world1.world_smooth += 1
-        world_gen.create_terrain(world1)
+    global vtd, vpd, vrd
 
     if key == 100:
         vtd -= 0.01
@@ -107,11 +132,8 @@ def main():
     glutKeyboardFunc(keyboard)
     glutSpecialFunc(keyboard)
     init()
+
     glutMainLoop()
 
-wt = world_gen.WorldType()
-wt.terrain_type.values[0] = 0.42
-wt.terrain_type.values[7] = 0.5
-world1 = world_gen.create_world(1, 33, 0.35, 10, wt)
-
+gen_prism()
 main()

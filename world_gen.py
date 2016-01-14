@@ -31,12 +31,16 @@ class Geometry:
     areas = []
     positions = []
 
+    points_unwrapped = []
+
     def reset_geometry(self):
         self.points = []
         self.cells = []
         self.neighbors = []
         self.areas = []
         self.positions = []
+
+        self.points_unwrapped = []
 
 
 class World:
@@ -47,6 +51,8 @@ class World:
 
     terrain_cell_types = []
     atmosphere_cell_types = []
+
+    terrain_texture = 0
 
     atmosphere_angle = 0.0
 
@@ -77,13 +83,25 @@ class World:
 def create_world(size, seed, fill, smooth, worldtype):
     w = World(size, seed, fill, smooth, worldtype)
 
-    create_geometry(w.terrain_geom, int(1500*size), seed)
-    create_geometry(w.atmosphere_geom, int(1000*size), seed)
+    create_geometry(w.terrain_geom, int(500*size), seed)
+    create_geometry(w.atmosphere_geom, int(400*size), seed)
 
     create_terrain(w)
     create_atmosphere(w)
 
     return w
+
+
+def unwrap_geometry(geometry):
+    geometry.points_unwrapped = numpy.zeros((len(geometry.points), 2))
+    for i in range(len(geometry.points)):
+        x, y, z = geometry.points[i]
+
+        r = math.sqrt(math.pow(x, 2)+math.pow(y, 2)+math.pow(z, 2))
+        t = math.atan2(y, x)
+        p = math.acos(z / r)
+
+        geometry.points_unwrapped[i] = (t/(math.pi*2.0), p/math.pi)
 
 
 def create_geometry(geometry, point_count, seed):
@@ -115,33 +133,7 @@ def create_geometry(geometry, point_count, seed):
         geometry.areas[cell] = norm(numpy.cross(b-a, c-a))/2.0
         geometry.positions[cell] = (a+b+c)/3.0
 
-
-# def create_terrain_old(world):
-#     world.reset_terrain()
-#
-#     random.seed(world.world_seed)
-#
-#     world.terrain_cell_types = [0]*len(world.terrain_geom.cells)
-#     for cell in range(len(world.terrain_geom.cells)):
-#         world.terrain_cell_types[cell] = 1 if random.random() < world.world_fill else 0
-#
-#     for smooth in range(world.world_smooth):
-#         for cell in range(len(world.terrain_geom.cells)):
-#             live_area = 0.0
-#             dead_area = 0.0
-#
-#             for neighbor in world.terrain_geom.neighbors[cell]:
-#                 if world.terrain_cell_types[neighbor] == 0:
-#                     dead_area += world.terrain_geom.areas[neighbor]
-#                 else:
-#                     live_area += world.terrain_geom.areas[neighbor]
-#
-#             live_area *= (0.8 + math.pow(world.terrain_geom.positions[cell][2], 4)*2.0)
-#
-#             if live_area > dead_area:
-#                 world.terrain_cell_types[cell] = 1
-#             else:
-#                 world.terrain_cell_types[cell] = 0
+    unwrap_geometry(geometry)
 
 
 def create_terrain(world):
@@ -199,10 +191,6 @@ def draw_world(world):
     terrain_vertex_array = (world.terrain_geom.points*world.world_size).ravel()
     glVertexPointer(3, GL_FLOAT, 0, terrain_vertex_array)
 
-    terrain_index_array = [numpy.zeros(0, 3)]*8
-    for cell in range(len(world.terrain_geom.cells)):
-        terrain_index_array[world.terrain_cell_types[cell].get_max_index()].append(world.terrain_geom.cells[cell])
-
     palette = [(0.4, 0.8, 0.2),
                (0.8, 0.8, 0.8),
                (0.7, 0.6, 0.1),
@@ -215,30 +203,30 @@ def draw_world(world):
     glEnableClientState(GL_VERTEX_ARRAY)
 
     for i in range(8):
+        terrain_index_array = []
+        for cell in range(len(world.terrain_geom.cells)):
+            if world.terrain_cell_types[cell].get_max_index() == i:
+                terrain_index_array.append(world.terrain_geom.cells[cell])
+
         glColor3f(palette[i][0], palette[i][1], palette[i][2])
-        tio = numpy.array(terrain_index_array[i]).ravel()
+        tio = numpy.array(terrain_index_array).ravel()
         glDrawElements(GL_TRIANGLES, len(tio), GL_UNSIGNED_INT, tio)
 
     glDisableClientState(GL_VERTEX_ARRAY)
 
-    # # atmosphere
-    # glRotatef(world.atmosphere_angle, 0, 0, 1)
-    # world.atmosphere_angle += 0.005
-#
-    # atmosphere_vertex_array = (world.atmosphere_geom.points*(1.015*world.world_size)).ravel()
-#
-    # atmosphere_index_array = []
-    # for cell in range(len(world.atmosphere_geom.cells)):
-    #     if world.atmosphere_cell_types[cell] == 1:
-    #         atmosphere_index_array += [world.atmosphere_geom.cells[cell]]
-#
-    # aio = numpy.array(atmosphere_index_array).ravel()
-#
-    # glVertexPointer(3, GL_FLOAT, 0, atmosphere_vertex_array)
-#
-    # glEnableClientState(GL_VERTEX_ARRAY)
-#
-    # glColor4f(0.5, 0.5, 0.5, 0.1)
-    # glDrawElements(GL_TRIANGLES, len(aio), GL_UNSIGNED_INT, aio)
-#
-    # glDisableClientState(GL_VERTEX_ARRAY)
+    # glBegin(GL_LINES)
+    # for i in range(len(world.terrain_geom.cells)):
+    #     a, b, c = world.terrain_geom.points_unwrapped[world.terrain_geom.cells[i]]
+    #
+    #     if norm(b-a) < 0.5:
+    #         glVertex2f(a[0], a[1])
+    #         glVertex2f(b[0], b[1])
+    #
+    #     if norm(a-c) < 0.5:
+    #         glVertex2f(c[0], c[1])
+    #         glVertex2f(a[0], a[1])
+    #
+    #     if norm(c-b) < 0.5:
+    #         glVertex2f(b[0], b[1])
+    #         glVertex2f(c[0], c[1])
+    # glEnd()

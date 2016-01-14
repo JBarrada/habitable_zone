@@ -4,9 +4,8 @@ from OpenGL.GLU import *
 import numpy
 import math
 import random
-import world_gen
 
-view_theta, view_phi, view_radius = 0.0, math.pi/2.0, 12.0
+view_theta, view_phi, view_radius = 0.0, math.pi, 12.0
 vtd, vpd, vrd = 0.0, 0.0, 0.0
 
 
@@ -36,12 +35,67 @@ def view_handler():
     gluLookAt(view_x, view_y, view_z, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0)
 
 
+def create_tex():
+    data = [100, 100, 100, 100, 100, 100, 20, 20, 50, 20, 20, 50]
+
+    texture = glGenTextures(1)
+
+    glBindTexture(GL_TEXTURE_2D, texture)
+
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE)
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
+
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+
+    # gluBuild2DMipmaps(GL_TEXTURE_2D, 3, 32, 32, GL_RGB, GL_UNSIGNED_BYTE, numpy.array(data).ravel())
+    glGenerateMipmap(GL_TEXTURE_2D)
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2, 2, 0, GL_RGB, GL_UNSIGNED_BYTE, numpy.array(data).ravel())
+
+    return texture
+
+
 def display():
+    global mytex
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
     view_handler()
 
-    world_gen.draw_world(world1)
+    glEnable(GL_TEXTURE_2D)
+
+    glBindTexture(GL_TEXTURE_2D, mytex)
+
+    glActiveTexture(GL_TEXTURE0)
+
+    vertex_array = [0, 0, 0,
+                    0, 1, 0,
+                    1, 1, 0,
+                    1, 0, 0]
+
+    # texture_array = [0, 0,
+    #                  0, 1,
+    #                  1, 1,
+    #                  1, 0]
+    texture_array = [0, 0,
+                     0, 0,
+                     1, 1,
+                     1, 1]
+
+    glVertexPointer(3, GL_FLOAT, 0, vertex_array)
+    glEnableClientState(GL_VERTEX_ARRAY)
+
+    glTexCoordPointer(2, GL_FLOAT, 0, texture_array)
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+
+    index_array = [0, 3, 2,
+                   2, 1, 0]
+
+    glDrawElements(GL_TRIANGLES, len(index_array), GL_UNSIGNED_INT, index_array)
+
+    glDisableClientState(GL_VERTEX_ARRAY)
+    glDisableClientState(GL_TEXTURE_COORD_ARRAY)
 
     glutSwapBuffers()
 
@@ -68,19 +122,7 @@ def init():
 
 
 def keyboard(key, x, y):
-    global vtd, vpd, vrd, world1
-
-    if key == 'r':
-        wt = world_gen.WorldType()
-        wt.terrain_type.values[0] = 0.42
-        wt.terrain_type.values[2] = 0.3
-        wt.terrain_type.values[3] = 0.4
-        wt.terrain_type.values[7] = 0.5
-        world1 = world_gen.create_world(1, random.random(), 0.35, 10, wt)
-
-    if key == 's':
-        world1.world_smooth += 1
-        world_gen.create_terrain(world1)
+    global vtd, vpd, vrd
 
     if key == 100:
         vtd -= 0.01
@@ -98,6 +140,7 @@ def keyboard(key, x, y):
 
 
 def main():
+    global mytex
     glutInit()
     glutInitWindowSize(640, 480)
     glutCreateWindow("!!!")
@@ -107,11 +150,12 @@ def main():
     glutKeyboardFunc(keyboard)
     glutSpecialFunc(keyboard)
     init()
+
+    mytex = create_tex()
+
     glutMainLoop()
 
-wt = world_gen.WorldType()
-wt.terrain_type.values[0] = 0.42
-wt.terrain_type.values[7] = 0.5
-world1 = world_gen.create_world(1, 33, 0.35, 10, wt)
+
+mytex = 0
 
 main()
