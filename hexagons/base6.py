@@ -4,26 +4,10 @@ from OpenGL.GLU import *
 import numpy
 import math
 
-view_theta, view_phi, view_radius = 0.0, math.pi/2.0, 12.0
+import hexagon
+
+view_theta, view_phi, view_radius = -math.pi/2.0, 0.0001, 12.0
 vtd, vpd, vrd = 0.0, 0.0, 0.0
-
-hexagon_points = []
-hexagon_simplices = []
-
-
-def gen_prism():
-    global hexagon_points, hexagon_simplices
-    for i in range(6):
-        x, y = math.cos(i/6.0*2*math.pi), math.sin(i/6.0*2*math.pi)
-        hexagon_points += [(x, y, 0), (x, y, -20)]
-
-    hexagon_simplices = [(0, 2, 4),
-                         (0, 4, 6),
-                         (0, 6, 10),
-                         (6, 8, 10)]
-
-    for i in range(6):
-        hexagon_simplices += [(0+(i*2), 1+(i*2), (2+(i*2)) % 12), ((2+(i*2)) % 12, 1+(i*2), (3+(i*2)) % 12)]
 
 
 def view_handler():
@@ -57,25 +41,16 @@ def display():
 
     view_handler()
 
-    va = numpy.array(hexagon_points).ravel()
-    glVertexPointer(3, GL_FLOAT, 0, va)
-    glEnableClientState(GL_VERTEX_ARRAY)
+    glEnable(GL_LIGHTING)
 
-    ia = numpy.array(hexagon_simplices).ravel()
-
-    glColor3f(0, 1, 1)
-    glDrawElements(GL_TRIANGLES, len(ia), GL_UNSIGNED_INT, ia)
-
-    glColor3f(1, 0, 0)
-    glDrawElements(GL_LINES, len(ia), GL_UNSIGNED_INT, ia)
-
-    glDisableClientState(GL_VERTEX_ARRAY)
+    for h in hexes:
+        h.draw()
 
     glutSwapBuffers()
 
 
 def init():
-    glClearColor(0, 0, 0, 0)
+    glClearColor(0.1, 0.1, 0.1, 0)
     glPointSize(4.0)
     glLineWidth(2.0)
 
@@ -88,14 +63,19 @@ def init():
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
-    fog_color = [1, 1, 1, 1]
+    fog_color = [0.1, 0.1, 0.1, 1]
 
     glFogi(GL_FOG_MODE, GL_LINEAR)
     glFogfv(GL_FOG_COLOR, fog_color)
     glHint(GL_FOG_HINT, GL_DONT_CARE)
-    glFogf(GL_FOG_START, 0.0)
-    glFogf(GL_FOG_END, 40.0)
+    glFogf(GL_FOG_START, 8.0)
+    glFogf(GL_FOG_END, 15.0)
     glEnable(GL_FOG)
+
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, [1, 1, 1, 1])
+    glLightfv(GL_LIGHT0, GL_POSITION, [1, 1, 1, 1])
+    glEnable(GL_LIGHTING)
+    glEnable(GL_LIGHT0)
 
     gluPerspective(45.0, float(640)/float(480), 0.1, 100.0)
     glMatrixMode(GL_MODELVIEW)
@@ -123,6 +103,7 @@ def keyboard(key, x, y):
 
 
 def main():
+    global hexes
     glutInit()
     glutInitWindowSize(640, 480)
     glutCreateWindow("!!!")
@@ -133,7 +114,12 @@ def main():
     glutSpecialFunc(keyboard)
     init()
 
+    width = (math.sqrt(3.0)*1.0)
+    hexes = [hexagon.Hexagon((0, 0, 0)),
+             hexagon.Hexagon((0, width, 0)),
+             hexagon.Hexagon((width*math.cos(math.pi/6.0), width*math.sin(math.pi/6.0), 0))]
+
     glutMainLoop()
 
-gen_prism()
+hexes = []
 main()
