@@ -4,7 +4,8 @@ from OpenGL.GLU import *
 import numpy
 import math
 
-import hexagon
+import hexagon2
+import objload
 
 view_theta, view_phi, view_radius = -math.pi/2.0, 0.0001, 12.0
 vtd, vpd, vrd = 0.0, 0.0, 0.0
@@ -43,8 +44,23 @@ def display():
 
     glEnable(GL_LIGHTING)
 
-    for h in hexes:
-        h.draw()
+    # for h in hexes:
+    #     h.draw()
+
+    glVertexPointer(3, GL_FLOAT, 0, myobj.vertexbufferdata)
+    glEnableClientState(GL_VERTEX_ARRAY)
+
+    # glNormalPointer(GL_FLOAT, 0, myobj.normalbufferdata)
+    # glEnableClientState(GL_NORMAL_ARRAY)
+
+    glTexCoordPointer(2, GL_FLOAT, 0, myobj.texturebufferdata)
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+
+    glDrawElements(GL_TRIANGLES, len(myobj.faces), GL_UNSIGNED_INT, range(len(myobj.vertexbufferdata)))
+
+    glDisableClientState(GL_VERTEX_ARRAY)
+    # glDisableClientState(GL_NORMAL_ARRAY)
+    glDisableClientState(GL_TEXTURE_COORD_ARRAY)
 
     glutSwapBuffers()
 
@@ -115,11 +131,13 @@ def main():
     init()
 
     width = (math.sqrt(3.0)*1.0)
-    hexes = [hexagon.Hexagon((0, 0, 0)),
-             hexagon.Hexagon((0, width, 0)),
-             hexagon.Hexagon((width*math.cos(math.pi/6.0), width*math.sin(math.pi/6.0), 0))]
+    hexes = [hexagon2.Hexagon((0, 0, 0)),
+             hexagon2.Hexagon((0, width, 0)),
+             hexagon2.Hexagon((width*math.cos(math.pi/6.0), width*math.sin(math.pi/6.0), 0))]
 
     glutMainLoop()
 
 hexes = []
+
+myobj = objload.load('icosahedron.obj')
 main()

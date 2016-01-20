@@ -5,16 +5,51 @@ import math
 import numpy
 import random
 import colorsys
+from copy import copy
 from scipy.linalg import norm
 from PIL import Image, ImageDraw
 
 
-class Hexagon:
-    points = []
-    triangles = []
-    normals = []
+class Vertex:
+    l_coords = numpy.zeros(3)
+    t_coords = numpy.zeros(2)
+    n_coords = numpy.zeros(3)
 
-    texture_coords = []
+    def __init__(self, (x, y, z)=(0, 0, 0), (tx, ty)=(0, 0), (nx, ny, nz)=(0, 0, 0)):
+        self.l_coords = numpy.array([x, y, z])
+        self.t_coords = numpy.array([tx, ty])
+        self.n_coords = numpy.array([nx, ny, nz])
+
+
+class Triangle:
+    vertices = [Vertex(), Vertex(), Vertex()]
+
+    def __init__(self, (a, b, c)):
+        self.vertices = a, b, c
+
+    def calculate_normals(self, direction):
+        a, b, c = self.vertices
+        ab = b.l_coords - a.l_coords
+        ac = c.l_coords - a.l_coords
+        normal = numpy.zeros(3)
+        if direction == 0:
+            normal = numpy.cross(ab, ac)
+        else:
+            normal = numpy.cross(ac, ab)
+        normal /= norm(normal)
+
+        self.vertices[0].n_coords = normal
+        self.vertices[1].n_coords = normal
+        self.vertices[2].n_coords = normal
+
+
+class Hexagon:
+    triangles = []
+
+    l_coords = []
+    t_coords = []
+    n_coords = []
+
     texture = 0
 
     height = 20.0
@@ -31,60 +66,67 @@ class Hexagon:
         self.generate_texture()
 
     def draw(self):
-        glVertexPointer(3, GL_FLOAT, 0, self.points)
+        glVertexPointer(3, GL_FLOAT, 0, self.l_coords)
         glEnableClientState(GL_VERTEX_ARRAY)
 
-        glTexCoordPointer(2, GL_FLOAT, 0, self.texture_coords)
+        glNormalPointer(GL_FLOAT, 0, self.n_coords)
+        glEnableClientState(GL_NORMAL_ARRAY)
+
+        glTexCoordPointer(2, GL_FLOAT, 0, self.t_coords)
         glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+
+        glEnable(GL_TEXTURE_2D)
+        glBindTexture(GL_TEXTURE_2D, self.texture)
+        glActiveTexture(GL_TEXTURE0)
 
         glPushMatrix()
 
         x, y, z = self.position
         glTranslatef(x, y, z)
 
-        glEnable(GL_TEXTURE_2D)
-        glBindTexture(GL_TEXTURE_2D, self.texture)
-        glActiveTexture(GL_TEXTURE0)
-
-        glDrawElements(GL_TRIANGLES, len(self.triangles[0:4*3]), GL_UNSIGNED_INT, self.triangles[0:4*3])
-
-        glDisable(GL_TEXTURE_2D)
-        glDrawElements(GL_TRIANGLES, len(self.triangles[4*3:]), GL_UNSIGNED_INT, self.triangles[4*3:])
+        glDrawElements(GL_TRIANGLES, 48, GL_UNSIGNED_INT, range(len(self.l_coords)))
 
         glDisableClientState(GL_VERTEX_ARRAY)
+        glDisableClientState(GL_NORMAL_ARRAY)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
 
         glPopMatrix()
 
     def generate_geometry(self):
-        self.points = []
+        vertices = []
+        self.l_coords = []
+        self.t_coords = []
+        self.n_coords = []
+
         self.triangles = []
 
         for i in range(6):
             x, y = self.radius*math.cos(i/6.0*2*math.pi), self.radius*math.sin(i/6.0*2*math.pi)
-            self.points += [(x, y, 0), (x, y, -self.height)]
+            tx, ty = (0.5*math.cos(i/6.0*2*math.pi))+0.5, (0.5*math.sin(i/6.0*2*math.pi))+0.5
+            vertices += [Vertex((x, y, 0), (tx, ty)), Vertex((x, y, -self.height), (tx, ty))]
 
-        self.triangles = [(0, 2, 4), (0, 4, 6), (0, 6, 10), (6, 8, 10)]
-        self.normals = [(0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1)]
+        for ai, bi, ci in [(0, 2, 4), (0, 4, 6), (0, 6, 10), (6, 8, 10)]:
+            a, b, c = copy(vertices[ai]), copy(vertices[bi]), copy(vertices[ci])
+            self.triangles += [Triangle((a, b, c))]
+
         for i in range(6):
-            ab = numpy.subtract(self.points[1+(i*2)], self.points[0+(i*2)])
-            ac = numpy.subtract(self.points[(2+(i*2)) % 12], self.points[0+(i*2)])
-            normal = numpy.cross(ab, ac)
-            normal /= norm(normal)
-            self.normals += [normal, normal]
-            self.triangles += [(0+(i*2), 1+(i*2), (2+(i*2)) % 12), ((2+(i*2)) % 12, 1+(i*2), (3+(i*2)) % 12)]
+            a, b, c = copy(vertices[0+(i*2)]), copy(vertices[1+(i*2)]), copy(vertices[(2+(i*2)) % 12])
+            d, e, f = copy(vertices[(2+(i*2)) % 12]), copy(vertices[1+(i*2)]), copy(vertices[(3+(i*2)) % 12])
+            self.triangles += [Triangle((a, b, c)), Triangle((d, e, f))]
 
-        self.points = numpy.array(self.points).ravel()
-        self.triangles = numpy.array(self.triangles).ravel()
-        self.normals = self.normals.ravel()
+        for triangle in self.triangles:
+            triangle.calculate_normals(0)
+
+            a, b, c = triangle.vertices
+            self.l_coords += [a.l_coords, b.l_coords, c.l_coords]
+            self.t_coords += [a.t_coords, b.t_coords, c.t_coords]
+            self.n_coords += [a.n_coords, b.n_coords, c.n_coords]
+
+        self.l_coords = numpy.array(self.l_coords).ravel()
+        self.t_coords = numpy.array(self.t_coords).ravel()
+        self.n_coords = numpy.array(self.n_coords).ravel()
 
     def generate_texture(self):
-        self.texture_coords = []
-        for i in range(6):
-            x, y = (0.5*math.cos(i/6.0*2*math.pi))+0.5, (0.5*math.sin(i/6.0*2*math.pi))+0.5
-            self.texture_coords += [(x, y), (x, y)]
-        self.texture_coords = numpy.array(self.texture_coords).ravel()
-
         t_size = 512
         image = Image.new('RGB', (t_size, t_size), '#ffffff')
         draw = ImageDraw.Draw(image)
